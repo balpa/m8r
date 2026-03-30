@@ -256,13 +256,14 @@
 
   /* ── Error ───────────────────────────────────── */
   .error-msg {
-    background: var(--red-dim);
-    color: var(--red);
+    background: var(--amber-dim);
+    color: var(--amber);
     font-size: 12px;
     padding: 10px 12px;
     border-radius: var(--radius-sm);
     margin-bottom: 10px;
-    line-height: 1.4;
+    line-height: 1.5;
+    font-weight: 500;
   }
 
   /* ── Settings view ───────────────────────────── */
@@ -470,7 +471,7 @@
     <div class="s-row">
       <div class="s-field">
         <span class="s-label">Poll interval (min)</span>
-        <input type="number" class="s-input" id="s-poll" value="1" min="1" max="60">
+        <input type="number" class="s-input" id="s-poll" value="2" min="2" max="60">
       </div>
       <div class="s-field">
         <span class="s-label">Alert at (%)</span>
@@ -526,7 +527,11 @@ function showSettings() {
 }
 
 // ── Header buttons ─────────────────────────────
+let lastRefreshClick = 0;
 $('#btn-refresh').addEventListener('click', () => {
+  const now = Date.now();
+  if (now - lastRefreshClick < 30000) return; // Min 30s between manual refreshes
+  lastRefreshClick = now;
   $('#header').classList.add('updating');
   window.m8r.refreshData();
   setTimeout(() => $('#header').classList.remove('updating'), 2000);
@@ -586,6 +591,19 @@ function statusInfo(fh, sd) {
   return { cls: 'ok', text: 'All clear' };
 }
 
+// ── Error messages ────────────────────────────
+function friendlyError(code, detail) {
+  const messages = {
+    'RATE_LIMITED': '⏳ API rate limit reached' + (detail ? ' — ' + detail : '. Polling will resume automatically.'),
+    'API_OVERLOADED': '⏳ Anthropic API is temporarily overloaded. Retrying shortly.',
+    'TIMEOUT': '⏳ Request timed out. Will retry on next poll.',
+    'NOT_AUTH': 'Not signed in. Go to Settings to connect your account.',
+    'TOKEN_EXPIRED': 'Session expired. Go to Settings to sign in again.',
+    'API_ERROR': 'Something went wrong' + (detail && detail !== 'API_ERROR' ? ': ' + detail : '. Will retry on next poll.'),
+  };
+  return messages[code] || (detail || 'An unexpected error occurred. Will retry on next poll.');
+}
+
 // ── Render ─────────────────────────────────────
 function render(payload) {
   if (!payload) return;
@@ -603,7 +621,7 @@ function render(payload) {
   $('#data-screen').style.display = '';
 
   if (data && data.error) {
-    $('#error-container').innerHTML = '<div class="error-msg">' + data.error + '</div>';
+    $('#error-container').innerHTML = '<div class="error-msg">' + friendlyError(data.error, data.errorDetail) + '</div>';
   } else {
     $('#error-container').innerHTML = '';
   }
@@ -726,7 +744,7 @@ $('#s-btn-auth').addEventListener('click', async () => {
 $('#s-btn-save').addEventListener('click', async () => {
   try {
     await window.m8r.saveSettings({
-      pollIntervalMinutes: parseInt($('#s-poll').value) || 1,
+      pollIntervalMinutes: Math.max(parseInt($('#s-poll').value) || 2, 2),
       alertThreshold: parseInt($('#s-threshold').value) || 80,
       alertEnabled: $('#s-alert-enabled').checked,
     });

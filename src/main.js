@@ -18,7 +18,7 @@ const store = new Store({
   defaults: {
     accessToken: '',
     refreshToken: '',
-    pollIntervalMinutes: 1,
+    pollIntervalMinutes: 2,
     alertThreshold: 80,
     alertEnabled: true,
   },
@@ -30,6 +30,7 @@ let pollTimer = null;
 let lastData = null;
 let pinned = false;
 let blurTimeout = null;
+let backoffUntil = 0;
 
 const client = new UsageClient(store.get('accessToken'));
 
@@ -191,9 +192,13 @@ function updateTray() {
 async function pollUsage() {
   if (!isConnected()) return;
 
+  // Skip if we're in a backoff period
+  if (Date.now() < backoffUntil) return;
+
   try {
     lastData = await client.fetchUsage();
     lastData.error = null;
+    backoffUntil = 0;
     updateTray();
     sendDataToPopup();
 
@@ -215,7 +220,37 @@ async function pollUsage() {
       const refreshed = await handleTokenExpired();
       if (refreshed) return pollUsage();
     }
-    lastData = { error: err.message, fiveHour: null, sevenDay: null, extraUsage: null, fetchedAt: new Date().toISOString() };
+
+    let errorType = 'UNKNOWN';
+    let errorDetail = null;
+
+    if (err.message === 'RATE_LIMITED') {
+      errorType = 'RATE_LIMITED';
+      const waitSec = err.retryAfter || 60;
+      backoffUntil = Date.now() + waitSec * 1000;
+      errorDetail = `Retry in ${waitSec >= 60 ? Math.ceil(waitSec / 60) + 'm' : waitSec + 's'}`;
+    } else if (err.message === 'API_OVERLOADED') {
+      errorType = 'API_OVERLOADED';
+      backoffUntil = Date.now() + 30000;
+    } else if (err.message === 'Request timeout') {
+      errorType = 'TIMEOUT';
+    } else if (err.message === 'Not authenticated') {
+      errorType = 'NOT_AUTH';
+    } else if (err.message === 'TOKEN_EXPIRED') {
+      errorType = 'TOKEN_EXPIRED';
+    } else {
+      errorType = 'API_ERROR';
+      errorDetail = err.message;
+    }
+
+    lastData = {
+      error: errorType,
+      errorDetail,
+      fiveHour: lastData?.fiveHour || null,
+      sevenDay: lastData?.sevenDay || null,
+      extraUsage: lastData?.extraUsage || null,
+      fetchedAt: new Date().toISOString(),
+    };
     updateTray();
     sendDataToPopup();
   }
@@ -223,7 +258,8 @@ async function pollUsage() {
 
 function startPolling() {
   if (pollTimer) clearInterval(pollTimer);
-  const interval = store.get('pollIntervalMinutes') * 60 * 1000;
+  const mins = Math.max(store.get('pollIntervalMinutes'), 2);
+  const interval = mins * 60 * 1000;
   pollUsage();
   pollTimer = setInterval(pollUsage, interval);
 }

@@ -1,111 +1,78 @@
 const { nativeImage } = require('electron');
 
-const SIZE = 32;
-const BAR_WIDTH = 10;
-const BAR_TOP = 2;
-const BAR_HEIGHT = 21;
-const LEFT_X = 3;
-const RIGHT_X = 19;
-const LABEL_Y = 25;
+const SIZE = 64;
+const GAP = 2;
+const LEFT_END = Math.floor((SIZE - GAP) / 2);
+const RIGHT_START = LEFT_END + GAP;
 
-const COLORS = {
-  ok:     [127, 119, 221],
-  warn:   [239, 159, 39],
-  danger: [226,  75,  74],
-  empty:  [ 55,  55,  65],
-  label:  [160, 160, 180],
-};
-
-// 3x5 pixel font
-const FONT_C = [
-  [0,1,1],
-  [1,0,0],
-  [1,0,0],
-  [1,0,0],
-  [0,1,1],
-];
-
-const FONT_W = [
-  [1,0,0,0,1],
-  [1,0,0,0,1],
-  [1,0,1,0,1],
-  [0,1,0,1,0],
-  [0,1,0,1,0],
-];
-
+// Lerp green→yellow→red based on percentage (no blue)
 function colorFor(pct) {
-  if (pct >= 80) return COLORS.danger;
-  if (pct >= 50) return COLORS.warn;
-  return COLORS.ok;
+  const t = Math.max(0, Math.min(pct / 100, 1));
+  let r, g;
+  if (t < 0.5) {
+    const s = t / 0.5;
+    r = Math.round(s * 255);
+    g = Math.round(210 + s * 20);
+  } else {
+    const s = (t - 0.5) / 0.5;
+    r = 255;
+    g = Math.round(230 - s * 190);
+  }
+  return [r, g, 0];
 }
 
+const EMPTY_COLOR = [40, 40, 40];
+
 function makeCanvas() {
-  return Buffer.alloc(SIZE * SIZE * 4);
+  const buf = Buffer.alloc(SIZE * SIZE * 4);
+  return buf;
 }
 
 function setPixel(buf, x, y, r, g, b, a) {
   if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return;
   const i = (y * SIZE + x) * 4;
-  buf[i] = r; buf[i+1] = g; buf[i+2] = b; buf[i+3] = a;
+  buf[i] = b; buf[i + 1] = g; buf[i + 2] = r; buf[i + 3] = a;
 }
 
-function drawBar(buf, x0, pct, color) {
+function fillRect(buf, x0, y0, x1, y1, color, alpha) {
+  for (let y = y0; y < y1; y++) {
+    for (let x = x0; x < x1; x++) {
+      setPixel(buf, x, y, color[0], color[1], color[2], alpha);
+    }
+  }
+}
+
+function drawHalf(buf, x0, x1, pct) {
+  const color = colorFor(pct);
   const ratio = Math.max(0, Math.min(pct / 100, 1));
-  const fillH = Math.round(BAR_HEIGHT * ratio);
-  const fillY = BAR_TOP + BAR_HEIGHT - fillH;
+  const fillH = Math.round(SIZE * ratio);
 
-  for (let y = BAR_TOP; y < BAR_TOP + BAR_HEIGHT; y++) {
-    for (let x = x0; x < x0 + BAR_WIDTH; x++) {
-      // round top corners (1px)
-      if (y === BAR_TOP && (x === x0 || x === x0 + BAR_WIDTH - 1)) continue;
-      // round bottom corners (1px)
-      if (y === BAR_TOP + BAR_HEIGHT - 1 && (x === x0 || x === x0 + BAR_WIDTH - 1)) continue;
-
-      if (y >= fillY) {
-        setPixel(buf, x, y, color[0], color[1], color[2], 255);
-      } else {
-        setPixel(buf, x, y, COLORS.empty[0], COLORS.empty[1], COLORS.empty[2], 160);
-      }
-    }
+  if (fillH < SIZE) {
+    fillRect(buf, x0, 0, x1, SIZE - fillH, EMPTY_COLOR, 255);
+  }
+  if (fillH > 0) {
+    fillRect(buf, x0, SIZE - fillH, x1, SIZE, color, 255);
   }
 }
 
-function drawGlyph(buf, glyph, x0, y0) {
-  for (let dy = 0; dy < glyph.length; dy++) {
-    for (let dx = 0; dx < glyph[dy].length; dx++) {
-      if (glyph[dy][dx]) {
-        setPixel(buf, x0 + dx, y0 + dy, COLORS.label[0], COLORS.label[1], COLORS.label[2], 200);
-      }
-    }
-  }
+function drawSplitSquare(buf, currentPct, weeklyPct) {
+  drawHalf(buf, 0, LEFT_END, currentPct);
+  drawHalf(buf, RIGHT_START, SIZE, weeklyPct);
 }
 
 function toImage(buf) {
-  return nativeImage.createFromBuffer(buf, { width: SIZE, height: SIZE, scaleFactor: 2.0 });
+  return nativeImage.createFromBuffer(buf, { width: SIZE, height: SIZE, scaleFactor: 2.5 });
 }
 
 function createTrayIcon(currentPct, weeklyPct) {
   const buf = makeCanvas();
-
-  drawBar(buf, LEFT_X, currentPct, colorFor(currentPct));
-  drawBar(buf, RIGHT_X, weeklyPct, colorFor(weeklyPct));
-
-  // "C" centered below left bar (bar center = 3+5 = 8, glyph width 3, so x=6)
-  drawGlyph(buf, FONT_C, 6, LABEL_Y);
-  // "W" centered below right bar (bar center = 19+5 = 24, glyph width 5, so x=21)
-  drawGlyph(buf, FONT_W, 21, LABEL_Y);
-
+  drawSplitSquare(buf, currentPct, weeklyPct);
   return toImage(buf);
 }
 
 function createDefaultIcon() {
   const buf = makeCanvas();
-
-  drawBar(buf, LEFT_X, 0, COLORS.ok);
-  drawBar(buf, RIGHT_X, 0, COLORS.ok);
-  drawGlyph(buf, FONT_C, 6, LABEL_Y);
-  drawGlyph(buf, FONT_W, 21, LABEL_Y);
-
+  drawSplitSquare(buf, 0, 0);
   return toImage(buf);
 }
 
