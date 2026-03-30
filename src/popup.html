@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>m8r</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0e0e18;
+    --bg-card: #16162a;
+    --bg-cell: rgba(255,255,255,0.03);
+    --border: rgba(255,255,255,0.06);
+    --text-1: #eeeef4;
+    --text-2: #9494b0;
+    --text-3: #5e5e7a;
+    --accent: #7F77DD;
+    --accent-dim: rgba(127,119,221,0.15);
+    --green: #00B374;
+    --green-dim: rgba(0,179,116,0.12);
+    --amber: #EF9F27;
+    --amber-dim: rgba(239,159,39,0.12);
+    --red: #E24B4A;
+    --red-dim: rgba(226,75,74,0.12);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    --mono: 'DM Mono', 'SF Mono', 'Cascadia Code', monospace;
+  }
+
+  .light {
+    --bg: #f5f4f1;
+    --bg-card: #ffffff;
+    --bg-cell: rgba(0,0,0,0.035);
+    --border: rgba(0,0,0,0.07);
+    --text-1: #1a1a2e;
+    --text-2: #6e6e8a;
+    --text-3: #a0a0b4;
+    --accent-dim: rgba(127,119,221,0.1);
+    --green-dim: rgba(0,179,116,0.08);
+    --amber-dim: rgba(239,159,39,0.08);
+    --red-dim: rgba(226,75,74,0.08);
+  }
+
+  html, body {
+    background: transparent;
+    font-family: var(--font);
+    color: var(--text-1);
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .container {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── Header ──────────────────────────────────── */
+  .header {
+    padding: 12px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-bottom: 1px solid var(--border);
+    -webkit-app-region: drag;
+  }
+
+  .logo {
+    width: 26px; height: 26px;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #7F77DD 0%, #534AB7 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 13px; color: #fff;
+    flex-shrink: 0;
+  }
+
+  .header-text { flex: 1; }
+  .header-title { font-size: 14px; font-weight: 600; line-height: 1.2; }
+  .header-sub { font-size: 10.5px; color: var(--text-3); }
+
+  .header-actions {
+    display: flex; gap: 2px;
+    -webkit-app-region: no-drag;
+  }
+
+  .icon-btn {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--text-3);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+    transition: all 0.15s;
+  }
+  .icon-btn:hover { background: var(--bg-cell); color: var(--text-2); }
+  .icon-btn.active { color: var(--accent); }
+
+  .icon-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* ── Content ─────────────────────────────────── */
+  .content {
+    flex: 1;
+    padding: 14px;
+    overflow: hidden;
+  }
+
+  /* ── Setup ───────────────────────────────────── */
+  .setup {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    text-align: center;
+    padding: 24px;
+  }
+  .setup .logo { width: 48px; height: 48px; font-size: 22px; border-radius: 14px; margin-bottom: 16px; }
+  .setup h2 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .setup p { font-size: 13px; color: var(--text-2); margin-bottom: 20px; line-height: 1.5; }
+  .setup-btn {
+    padding: 10px 24px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--accent);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .setup-btn:hover { background: var(--accent); color: #fff; }
+
+  /* ── Status badge ────────────────────────────── */
+  .status-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 12px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .status-badge .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-badge.ok { background: var(--green-dim); color: var(--green); }
+  .status-badge.ok .dot { background: var(--green); }
+  .status-badge.warn { background: var(--amber-dim); color: var(--amber); }
+  .status-badge.warn .dot { background: var(--amber); }
+  .status-badge.danger { background: var(--red-dim); color: var(--red); }
+  .status-badge.danger .dot { background: var(--red); animation: blink 1.5s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+  /* ── Limit card ──────────────────────────────── */
+  .limit-card {
+    background: var(--bg-cell);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+
+  .limit-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .limit-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-3);
+  }
+
+  .limit-right {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .limit-countdown {
+    font-size: 11px;
+    color: var(--text-3);
+  }
+
+  .limit-pct {
+    font-family: var(--mono);
+    font-size: 20px;
+    font-weight: 500;
+    line-height: 1;
+  }
+
+  .limit-track {
+    height: 5px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .light .limit-track { background: rgba(0,0,0,0.05); }
+
+  .limit-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .fill-ok { background: var(--accent); }
+  .fill-warn { background: var(--amber); }
+  .fill-danger { background: var(--red); }
+
+  /* ── Extra usage ─────────────────────────────── */
+  .extra-card {
+    background: var(--bg-cell);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+
+  .extra-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 8px;
+  }
+
+  .extra-amounts {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--text-1);
+  }
+  .extra-amounts .dim { color: var(--text-3); font-size: 12px; }
+
+  /* ── Meta ─────────────────────────────────────── */
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 8px;
+    font-size: 11px;
+    color: var(--text-3);
+  }
+
+  /* ── Error ───────────────────────────────────── */
+  .error-msg {
+    background: var(--red-dim);
+    color: var(--red);
+    font-size: 12px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 10px;
+    line-height: 1.4;
+  }
+
+  /* ── Settings view ───────────────────────────── */
+  .settings-back {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    margin-bottom: 18px;
+    font-family: var(--font);
+  }
+  .settings-back:hover { text-decoration: underline; }
+
+  .s-field { margin-bottom: 16px; }
+
+  .s-label {
+    display: block;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+  }
+
+  .s-hint {
+    font-size: 10.5px;
+    color: var(--text-3);
+    margin-top: 4px;
+  }
+
+  .s-input {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--bg-cell);
+    color: var(--text-1);
+    font-family: var(--mono);
+    font-size: 13px;
+    outline: none;
+  }
+  .s-input:focus { border-color: var(--accent); }
+
+  .s-row { display: flex; gap: 10px; }
+  .s-row .s-field { flex: 1; }
+
+  .s-toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+    margin-bottom: 10px;
+  }
+  .s-toggle-row span { font-size: 13px; }
+
+  .toggle { position: relative; width: 38px; height: 20px; cursor: pointer; }
+  .toggle input { opacity: 0; width: 0; height: 0; }
+  .toggle-slider {
+    position: absolute; inset: 0;
+    background: var(--bg-cell);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    transition: 0.2s;
+  }
+  .toggle-slider::before {
+    content: '';
+    position: absolute;
+    width: 14px; height: 14px;
+    left: 2px; top: 2px;
+    background: var(--text-3);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+  .toggle input:checked + .toggle-slider { background: var(--accent-dim); border-color: var(--accent); }
+  .toggle input:checked + .toggle-slider::before { transform: translateX(18px); background: var(--accent); }
+
+  .auth-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .auth-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .auth-text { font-size: 12px; flex: 1; }
+
+  .s-btn {
+    padding: 7px 14px;
+    border-radius: 7px;
+    border: 1px solid var(--border);
+    background: var(--bg-cell);
+    color: var(--text-2);
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .s-btn:hover { color: var(--text-1); }
+  .s-btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .s-btn-primary:hover { background: #6B63C9; }
+
+  .s-save-row {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .s-status { font-size: 11px; margin-top: 8px; text-align: right; }
+  .s-status.ok { color: var(--green); }
+  .s-status.err { color: var(--red); }
+
+  /* ── Footer ──────────────────────────────────── */
+  .footer {
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: center;
+  }
+  .footer-btn {
+    padding: 6px 20px;
+    font-family: var(--font);
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-3);
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .footer-btn:hover { color: var(--red); }
+
+  .updating .logo { animation: pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header" id="header">
+    <div class="logo" id="logo">m</div>
+    <div class="header-text">
+      <div class="header-title">m8r</div>
+      <div class="header-sub" id="header-sub">Claude usage monitor</div>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" id="btn-refresh" title="Refresh">
+        <svg viewBox="0 0 24 24"><path d="M1 4v6h6"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-usage" title="Usage page">
+        <svg viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-pin" title="Pin to screen">
+        <svg viewBox="0 0 24 24"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>
+      </button>
+      <button class="icon-btn" id="btn-settings" title="Settings">
+        <svg viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Data view ──────────────────────────── -->
+  <div class="content" id="data-view">
+
+    <!-- Setup (not connected) -->
+    <div id="setup-screen" style="display:none">
+      <div class="setup">
+        <div class="logo">m</div>
+        <h2>Welcome to m8r</h2>
+        <p>Sign in with your Anthropic account to monitor your Claude rate limits.</p>
+        <button class="setup-btn" id="btn-setup">Sign in to Anthropic</button>
+      </div>
+    </div>
+
+    <!-- Connected data -->
+    <div id="data-screen" style="display:none">
+      <div id="error-container"></div>
+      <div id="status-container"></div>
+      <div id="limits-container"></div>
+      <div id="extra-container"></div>
+      <div id="meta-container"></div>
+    </div>
+  </div>
+
+  <!-- ── Settings view ──────────────────────── -->
+  <div class="content" id="settings-view" style="display:none">
+    <button class="settings-back" id="btn-back">← Settings</button>
+
+    <div class="s-field">
+      <span class="s-label">Account</span>
+      <div class="auth-row">
+        <span class="auth-dot" id="s-dot"></span>
+        <span class="auth-text" id="s-conn-text"></span>
+        <button class="s-btn" id="s-btn-auth"></button>
+      </div>
+    </div>
+
+    <div class="s-row">
+      <div class="s-field">
+        <span class="s-label">Poll interval (min)</span>
+        <input type="number" class="s-input" id="s-poll" value="1" min="1" max="60">
+      </div>
+      <div class="s-field">
+        <span class="s-label">Alert at (%)</span>
+        <input type="number" class="s-input" id="s-threshold" value="80" min="10" max="100" step="5">
+      </div>
+    </div>
+
+    <div class="s-toggle-row">
+      <span>Rate limit alerts</span>
+      <label class="toggle">
+        <input type="checkbox" id="s-alert-enabled" checked>
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+
+    <div class="s-save-row">
+      <button class="s-btn s-btn-primary" id="s-btn-save">Save</button>
+    </div>
+    <div class="s-status" id="s-status"></div>
+  </div>
+
+  <div class="footer">
+    <button class="footer-btn" id="btn-quit">Quit m8r</button>
+  </div>
+</div>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+let isPinned = false;
+let currentView = 'data';
+let cachedPayload = null;
+
+// ── Theme ──────────────────────────────────────
+async function applyTheme() {
+  const t = await window.m8r.getTheme();
+  document.body.className = t === 'light' ? 'light' : '';
+}
+applyTheme();
+window.m8r.onThemeChanged((t) => { document.body.className = t === 'light' ? 'light' : ''; });
+
+// ── View switching ─────────────────────────────
+function showData() {
+  currentView = 'data';
+  $('#data-view').style.display = '';
+  $('#settings-view').style.display = 'none';
+}
+
+function showSettings() {
+  currentView = 'settings';
+  $('#data-view').style.display = 'none';
+  $('#settings-view').style.display = '';
+  loadSettings();
+}
+
+// ── Header buttons ─────────────────────────────
+$('#btn-refresh').addEventListener('click', () => {
+  $('#header').classList.add('updating');
+  window.m8r.refreshData();
+  setTimeout(() => $('#header').classList.remove('updating'), 2000);
+});
+
+$('#btn-usage').addEventListener('click', () => window.m8r.openUsagePage());
+
+$('#btn-pin').addEventListener('click', async () => {
+  isPinned = await window.m8r.togglePin();
+  $('#btn-pin').classList.toggle('active', isPinned);
+  $('#btn-pin').title = isPinned ? 'Unpin from screen' : 'Pin to screen';
+});
+
+$('#btn-settings').addEventListener('click', () => {
+  if (currentView === 'settings') showData();
+  else showSettings();
+});
+
+$('#btn-back').addEventListener('click', showData);
+$('#btn-setup').addEventListener('click', () => window.m8r.startAuth());
+$('#btn-quit').addEventListener('click', () => window.m8r.quit());
+
+// ── Helpers ────────────────────────────────────
+function pctClass(p) { return p >= 80 ? 'danger' : p >= 50 ? 'warn' : 'ok'; }
+
+function pctColor(p) {
+  if (p >= 80) return 'var(--red)';
+  if (p >= 50) return 'var(--amber)';
+  return 'var(--accent)';
+}
+
+function countdown(iso) {
+  if (!iso) return '';
+  const diff = new Date(iso) - Date.now();
+  if (diff <= 0) return 'now';
+  const h = Math.floor(diff / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  if (h >= 24) { const d = Math.floor(h / 24); return d + 'd ' + (h % 24) + 'h'; }
+  if (h > 0) return h + 'h ' + m + 'm';
+  return m + 'm';
+}
+
+function resetLabel(iso) {
+  if (!iso) return '';
+  const diff = new Date(iso) - Date.now();
+  if (diff <= 0) return 'resetting...';
+  return 'resets in ' + countdown(iso);
+}
+
+function credits(cents) { return '$' + (cents / 100).toFixed(2); }
+
+function statusInfo(fh, sd) {
+  const peak = Math.max(fh, sd);
+  if (peak >= 90) return { cls: 'danger', text: 'Rate limited — usage paused' };
+  if (peak >= 80) return { cls: 'danger', text: 'Approaching rate limit' };
+  if (peak >= 50) return { cls: 'warn', text: 'Moderate usage' };
+  return { cls: 'ok', text: 'All clear' };
+}
+
+// ── Render ─────────────────────────────────────
+function render(payload) {
+  if (!payload) return;
+  cachedPayload = payload;
+  const { data, isConnected } = payload;
+
+  if (!isConnected) {
+    $('#setup-screen').style.display = 'flex';
+    $('#data-screen').style.display = 'none';
+    $('#header-sub').textContent = 'Claude usage monitor';
+    return;
+  }
+
+  $('#setup-screen').style.display = 'none';
+  $('#data-screen').style.display = '';
+
+  if (data && data.error) {
+    $('#error-container').innerHTML = '<div class="error-msg">' + data.error + '</div>';
+  } else {
+    $('#error-container').innerHTML = '';
+  }
+
+  if (!data || !data.fiveHour) {
+    $('#status-container').innerHTML = '';
+    $('#limits-container').innerHTML = '';
+    $('#extra-container').innerHTML = '';
+    $('#meta-container').innerHTML = '';
+    return;
+  }
+
+  const fh = data.fiveHour;
+  const sd = data.sevenDay;
+  const st = statusInfo(fh.utilization, sd.utilization);
+
+  $('#header-sub').textContent = fh.utilization + '% current · ' + sd.utilization + '% weekly';
+
+  // Status badge
+  $('#status-container').innerHTML =
+    '<div class="status-badge ' + st.cls + '">' +
+    '<span class="dot"></span>' + st.text +
+    '</div>';
+
+  // Rate limit cards
+  $('#limits-container').innerHTML =
+    '<div class="limit-card">' +
+      '<div class="limit-top">' +
+        '<span class="limit-label">Current</span>' +
+        '<div class="limit-right">' +
+          '<span class="limit-countdown">' + resetLabel(fh.resetsAt) + '</span>' +
+          '<span class="limit-pct" style="color:' + pctColor(fh.utilization) + '">' + fh.utilization + '%</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="limit-track"><div class="limit-fill fill-' + pctClass(fh.utilization) + '" style="width:' + Math.min(fh.utilization, 100) + '%"></div></div>' +
+    '</div>' +
+    '<div class="limit-card">' +
+      '<div class="limit-top">' +
+        '<span class="limit-label">Weekly</span>' +
+        '<div class="limit-right">' +
+          '<span class="limit-countdown">' + resetLabel(sd.resetsAt) + '</span>' +
+          '<span class="limit-pct" style="color:' + pctColor(sd.utilization) + '">' + sd.utilization + '%</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="limit-track"><div class="limit-fill fill-' + pctClass(sd.utilization) + '" style="width:' + Math.min(sd.utilization, 100) + '%"></div></div>' +
+    '</div>';
+
+  // Extra usage
+  const ex = data.extraUsage;
+  if (ex && ex.isEnabled) {
+    $('#extra-container').innerHTML =
+      '<div class="extra-card">' +
+        '<div class="extra-top">' +
+          '<span class="limit-label">Extra usage</span>' +
+          '<span class="extra-amounts">' + credits(ex.usedCredits) + ' <span class="dim">/ ' + credits(ex.monthlyLimit) + '</span></span>' +
+        '</div>' +
+        '<div class="limit-track"><div class="limit-fill fill-' + pctClass(ex.utilization) + '" style="width:' + Math.min(ex.utilization, 100) + '%"></div></div>' +
+      '</div>';
+  } else {
+    $('#extra-container').innerHTML = '';
+  }
+
+  // Meta
+  const updated = data.fetchedAt
+    ? new Date(data.fetchedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })
+    : '—';
+  $('#meta-container').innerHTML =
+    '<div class="meta">' +
+      '<span>Updated ' + updated + '</span>' +
+      '<span>Polls every ' + (cachedPayload._poll || 1) + 'm</span>' +
+    '</div>';
+}
+
+window.m8r.onUsageData(render);
+
+// ── Settings logic ─────────────────────────────
+let settingsConnected = false;
+
+async function loadSettings() {
+  const s = await window.m8r.getSettings();
+  settingsConnected = s.isConnected;
+  $('#s-poll').value = s.pollIntervalMinutes || 1;
+  $('#s-threshold').value = s.alertThreshold || 80;
+  $('#s-alert-enabled').checked = s.alertEnabled !== false;
+  updateAuthUI();
+}
+
+function updateAuthUI() {
+  if (settingsConnected) {
+    $('#s-dot').style.background = 'var(--green)';
+    $('#s-conn-text').textContent = 'Connected';
+    $('#s-conn-text').style.color = 'var(--text-1)';
+    $('#s-btn-auth').textContent = 'Sign out';
+    $('#s-btn-auth').className = 's-btn';
+  } else {
+    $('#s-dot').style.background = 'var(--text-3)';
+    $('#s-conn-text').textContent = 'Not connected';
+    $('#s-conn-text').style.color = 'var(--text-3)';
+    $('#s-btn-auth').textContent = 'Sign in';
+    $('#s-btn-auth').className = 's-btn s-btn-primary';
+  }
+}
+
+$('#s-btn-auth').addEventListener('click', async () => {
+  if (settingsConnected) {
+    await window.m8r.disconnect();
+    settingsConnected = false;
+    updateAuthUI();
+  } else {
+    const ok = await window.m8r.startAuth();
+    if (ok) {
+      settingsConnected = true;
+      updateAuthUI();
+      $('#s-status').textContent = 'Signed in!';
+      $('#s-status').className = 's-status ok';
+    }
+  }
+});
+
+$('#s-btn-save').addEventListener('click', async () => {
+  try {
+    await window.m8r.saveSettings({
+      pollIntervalMinutes: parseInt($('#s-poll').value) || 1,
+      alertThreshold: parseInt($('#s-threshold').value) || 80,
+      alertEnabled: $('#s-alert-enabled').checked,
+    });
+    $('#s-status').textContent = 'Saved';
+    $('#s-status').className = 's-status ok';
+    setTimeout(showData, 600);
+  } catch (e) {
+    $('#s-status').textContent = e.message;
+    $('#s-status').className = 's-status err';
+  }
+});
+
+// ── Auto-resize window to fit content ──────────
+const container = document.querySelector('.container');
+const ro = new ResizeObserver(() => {
+  const h = container.offsetHeight;
+  if (h > 0) window.m8r.resizeToFit(h);
+});
+ro.observe(container);
+</script>
+
+</body>
+</html>
