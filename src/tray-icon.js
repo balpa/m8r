@@ -1,81 +1,112 @@
 const { nativeImage } = require('electron');
 
-function createTrayIcon(utilization) {
-  const size = 16;
-  const canvas = Buffer.alloc(size * size * 4);
-  const ratio = Math.max(0, Math.min(utilization / 100, 1));
+const SIZE = 32;
+const BAR_WIDTH = 10;
+const BAR_TOP = 2;
+const BAR_HEIGHT = 21;
+const LEFT_X = 3;
+const RIGHT_X = 19;
+const LABEL_Y = 25;
 
-  let r, g, b;
-  if (ratio < 0.5) {
-    r = 127; g = 119; b = 221;
-  } else if (ratio < 0.8) {
-    r = 239; g = 159; b = 39;
-  } else {
-    r = 226; g = 75; b = 74;
-  }
+const COLORS = {
+  ok:     [127, 119, 221],
+  warn:   [239, 159, 39],
+  danger: [226,  75,  74],
+  empty:  [ 55,  55,  65],
+  label:  [160, 160, 180],
+};
 
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const cx = x - size / 2 + 0.5;
-      const cy = y - size / 2 + 0.5;
-      const dist = Math.sqrt(cx * cx + cy * cy);
-      const radius = size / 2 - 1;
+// 3x5 pixel font
+const FONT_C = [
+  [0,1,1],
+  [1,0,0],
+  [1,0,0],
+  [1,0,0],
+  [0,1,1],
+];
 
-      if (dist <= radius) {
-        const fillY = size - size * ratio;
-        if (y >= fillY) {
-          canvas[idx] = r;
-          canvas[idx + 1] = g;
-          canvas[idx + 2] = b;
-          canvas[idx + 3] = 255;
-        } else {
-          canvas[idx] = 80;
-          canvas[idx + 1] = 80;
-          canvas[idx + 2] = 90;
-          canvas[idx + 3] = 200;
-        }
-      } else if (dist <= radius + 1) {
-        const alpha = Math.max(0, 1 - (dist - radius));
-        canvas[idx] = r;
-        canvas[idx + 1] = g;
-        canvas[idx + 2] = b;
-        canvas[idx + 3] = Math.floor(alpha * 150);
+const FONT_W = [
+  [1,0,0,0,1],
+  [1,0,0,0,1],
+  [1,0,1,0,1],
+  [0,1,0,1,0],
+  [0,1,0,1,0],
+];
+
+function colorFor(pct) {
+  if (pct >= 80) return COLORS.danger;
+  if (pct >= 50) return COLORS.warn;
+  return COLORS.ok;
+}
+
+function makeCanvas() {
+  return Buffer.alloc(SIZE * SIZE * 4);
+}
+
+function setPixel(buf, x, y, r, g, b, a) {
+  if (x < 0 || x >= SIZE || y < 0 || y >= SIZE) return;
+  const i = (y * SIZE + x) * 4;
+  buf[i] = r; buf[i+1] = g; buf[i+2] = b; buf[i+3] = a;
+}
+
+function drawBar(buf, x0, pct, color) {
+  const ratio = Math.max(0, Math.min(pct / 100, 1));
+  const fillH = Math.round(BAR_HEIGHT * ratio);
+  const fillY = BAR_TOP + BAR_HEIGHT - fillH;
+
+  for (let y = BAR_TOP; y < BAR_TOP + BAR_HEIGHT; y++) {
+    for (let x = x0; x < x0 + BAR_WIDTH; x++) {
+      // round top corners (1px)
+      if (y === BAR_TOP && (x === x0 || x === x0 + BAR_WIDTH - 1)) continue;
+      // round bottom corners (1px)
+      if (y === BAR_TOP + BAR_HEIGHT - 1 && (x === x0 || x === x0 + BAR_WIDTH - 1)) continue;
+
+      if (y >= fillY) {
+        setPixel(buf, x, y, color[0], color[1], color[2], 255);
+      } else {
+        setPixel(buf, x, y, COLORS.empty[0], COLORS.empty[1], COLORS.empty[2], 160);
       }
     }
   }
+}
 
-  return nativeImage.createFromBuffer(canvas, { width: size, height: size, scaleFactor: 1.0 });
+function drawGlyph(buf, glyph, x0, y0) {
+  for (let dy = 0; dy < glyph.length; dy++) {
+    for (let dx = 0; dx < glyph[dy].length; dx++) {
+      if (glyph[dy][dx]) {
+        setPixel(buf, x0 + dx, y0 + dy, COLORS.label[0], COLORS.label[1], COLORS.label[2], 200);
+      }
+    }
+  }
+}
+
+function toImage(buf) {
+  return nativeImage.createFromBuffer(buf, { width: SIZE, height: SIZE, scaleFactor: 2.0 });
+}
+
+function createTrayIcon(currentPct, weeklyPct) {
+  const buf = makeCanvas();
+
+  drawBar(buf, LEFT_X, currentPct, colorFor(currentPct));
+  drawBar(buf, RIGHT_X, weeklyPct, colorFor(weeklyPct));
+
+  // "C" centered below left bar (bar center = 3+5 = 8, glyph width 3, so x=6)
+  drawGlyph(buf, FONT_C, 6, LABEL_Y);
+  // "W" centered below right bar (bar center = 19+5 = 24, glyph width 5, so x=21)
+  drawGlyph(buf, FONT_W, 21, LABEL_Y);
+
+  return toImage(buf);
 }
 
 function createDefaultIcon() {
-  const size = 16;
-  const canvas = Buffer.alloc(size * size * 4);
+  const buf = makeCanvas();
 
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const idx = (y * size + x) * 4;
-      const cx = x - size / 2 + 0.5;
-      const cy = y - size / 2 + 0.5;
-      const dist = Math.sqrt(cx * cx + cy * cy);
-      const radius = size / 2 - 1;
+  drawBar(buf, LEFT_X, 0, COLORS.ok);
+  drawBar(buf, RIGHT_X, 0, COLORS.ok);
+  drawGlyph(buf, FONT_C, 6, LABEL_Y);
+  drawGlyph(buf, FONT_W, 21, LABEL_Y);
 
-      if (dist <= radius) {
-        canvas[idx] = 127;
-        canvas[idx + 1] = 119;
-        canvas[idx + 2] = 221;
-        canvas[idx + 3] = 220;
-      } else if (dist <= radius + 1) {
-        const alpha = Math.max(0, 1 - (dist - radius));
-        canvas[idx] = 127;
-        canvas[idx + 1] = 119;
-        canvas[idx + 2] = 221;
-        canvas[idx + 3] = Math.floor(alpha * 150);
-      }
-    }
-  }
-
-  return nativeImage.createFromBuffer(canvas, { width: size, height: size, scaleFactor: 1.0 });
+  return toImage(buf);
 }
 
 module.exports = { createTrayIcon, createDefaultIcon };

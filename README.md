@@ -6,20 +6,19 @@ A lightweight system tray (Windows) / menu bar (macOS) app that shows your Anthr
 
 ## Features
 
-- **System tray / menu bar icon** — shows a fill-level indicator based on budget usage
-- **Click-to-expand panel** — total spend, per-model breakdown (Opus, Sonnet, Haiku), daily token sparkline
-- **Budget tracking** — set a monthly budget, see progress bar with color-coded warnings
-- **Desktop notifications** — alerts when you hit your budget threshold (configurable)
-- **Auto-refresh** — polls the Anthropic Usage API at a configurable interval (default: 5 min)
+- **System tray / menu bar icon** — shows a fill-level indicator based on rate limit utilization
+- **Click-to-expand panel** — current and weekly rate limits with countdown timers, extra usage tracking
+- **OAuth sign-in** — authenticate with your Anthropic account, no API key needed
+- **Pin-to-screen widget** — pin the panel to keep it visible as a desktop widget
+- **Desktop notifications** — alerts when rate limit utilization hits your threshold (configurable)
+- **Auto-refresh** — polls the usage API at a configurable interval (default: 1 min)
 - **Light / dark mode** — follows your system theme automatically
-- **macOS menu bar title** — shows dollar amount directly in the menu bar (macOS only)
+- **macOS menu bar title** — shows utilization % directly in the menu bar (macOS only)
 
 ## Requirements
 
 - **Node.js** 18+ (https://nodejs.org)
-- **Anthropic Admin API key** — get one from [console.anthropic.com](https://console.anthropic.com) → Settings → API Keys → Create Admin Key
-
-> ⚠️ You need an **Admin** API key (starts with `sk-ant-admin-...`), not a regular API key. Only org admins can create these.
+- **Anthropic account** — sign in via OAuth on first launch (no API key needed)
 
 ## Quick Start
 
@@ -31,7 +30,7 @@ npm install
 npm start
 ```
 
-On first launch, click the tray icon → **Settings** and paste your Admin API key.
+On first launch, click the tray icon and sign in with your Anthropic account.
 
 ## Build Standalone Executables
 
@@ -50,21 +49,18 @@ Built files will be in the `dist/` folder.
 
 ## How It Works
 
-The app uses Anthropic's [Usage and Cost API](https://docs.anthropic.com/en/api/usage-cost-api):
+The app authenticates via OAuth (same flow as Claude Code) and fetches rate limit data from Anthropic's usage API:
 
-- **Usage endpoint** (`/v1/organizations/usage_report/messages`) — token counts by model and day
-- **Cost endpoint** (`/v1/organizations/cost_report`) — dollar amounts by model
+- **Usage endpoint** (`/api/oauth/usage`) — current and weekly rate limit utilization, extra usage
 
-Data is fetched every 5 minutes (configurable) and cached locally. Your API key is stored in your OS keychain via `electron-store` and is only sent to `api.anthropic.com`.
+Data is fetched every minute (configurable) and cached locally. OAuth tokens are stored locally via `electron-store` and are only sent to Anthropic's servers.
 
 ## Configuration
 
 | Setting | Default | Description |
 |---------|---------|-------------|
-| Admin API Key | — | Your `sk-ant-admin-...` key |
-| Monthly Budget | $100 | Your spending target |
-| Poll Interval | 5 min | How often to refresh data |
-| Alert Threshold | 80% | Budget % that triggers a notification |
+| Poll Interval | 1 min | How often to refresh data |
+| Alert Threshold | 80% | Rate limit % that triggers a notification |
 | Alerts Enabled | Yes | Toggle desktop notifications |
 
 ## Project Structure
@@ -74,32 +70,31 @@ m8r/
 ├── src/
 │   ├── main.js          # Electron main process (tray, windows, polling)
 │   ├── preload.js       # Secure IPC bridge
-│   ├── api-client.js    # Anthropic Usage/Cost API client
+│   ├── oauth.js         # OAuth 2.0 PKCE flow
+│   ├── auth-window.js   # OAuth browser window
+│   ├── api-client.js    # Anthropic usage API client
 │   ├── tray-icon.js     # Dynamic tray icon generator
-│   ├── popup.html       # Main panel UI
-│   └── settings.html    # Settings window UI
-├── assets/              # App icons (add your own .ico/.icns/.png)
+│   └── popup.html       # Main panel UI (data + inline settings)
+├── assets/              # App icons
 ├── package.json
 └── README.md
 ```
 
 ## Tray Icon
 
-The tray icon is a small circle that fills up based on your budget usage:
+The tray icon is a small circle that fills up based on your rate limit utilization:
 
-- 🟣 **Purple** — under 50% of budget
-- 🟠 **Amber** — 50–80% of budget
-- 🔴 **Red** — over 80% of budget
+- 🟣 **Purple** — under 50% utilization
+- 🟠 **Amber** — 50–80% utilization
+- 🔴 **Red** — over 80% utilization
 
-On macOS, the current dollar amount is also shown as text in the menu bar.
+On macOS, the current utilization % is also shown as text in the menu bar.
 
 ## Troubleshooting
 
-**"API error 401"** — Your API key is invalid or expired. Generate a new Admin key from the Anthropic Console.
+**"TOKEN_EXPIRED"** — Your OAuth token has expired. The app will try to refresh it automatically. If it persists, sign out and sign back in.
 
-**"API error 403"** — Your key doesn't have admin permissions. You need an Admin API key, not a regular one.
-
-**No data showing** — The Usage API can take up to 5 minutes after API calls for data to appear. Also check that you've actually made API calls this month.
+**No data showing** — Make sure you're signed in. The usage API may take a moment to return data after authentication.
 
 **Icon not appearing (Linux)** — Some Linux DEs require `libappindicator`. Install it with `sudo apt install libappindicator3-1`.
 

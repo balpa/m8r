@@ -176,8 +176,7 @@ function updateTray() {
   if (!tray) return;
 
   if (lastData && lastData.fiveHour) {
-    const pct = Math.max(lastData.fiveHour.utilization, lastData.sevenDay.utilization);
-    tray.setImage(createTrayIcon(pct));
+    tray.setImage(createTrayIcon(lastData.fiveHour.utilization, lastData.sevenDay.utilization));
     tray.setToolTip(`m8r — ${lastData.fiveHour.utilization}% current · ${lastData.sevenDay.utilization}% weekly`);
     if (process.platform === 'darwin') {
       tray.setTitle(`${lastData.fiveHour.utilization}%`, { fontType: 'monospacedDigit' });
